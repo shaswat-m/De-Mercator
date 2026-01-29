@@ -1,0 +1,35 @@
+title: geodesic-overlay demo
+
+# optional; if omitted, centroid of first location is used
+projection_center:
+  lat: 37.7749
+  lon: -122.4194
+
+colors:
+  - "#1f77b4"
+  - "#ff7f0e"
+  - "#2ca02c"
+  - "#d62728"
+
+locations:
+  - id: bay_area
+    name: Bay Area Outline
+    path: data/ca_counties.geojson
+    where: 'name in ["San Francisco","San Mateo","Santa Clara","Alameda","Contra Costa","Marin","Sonoma","Napa","Solano"]'
+
+
+  - id: countries
+    name: Countries
+    path: data/countries.geojson
+    where: 'ADMIN in ["United States of America","Canada","Mexico", "India", "Japan"]'
+
+    #- id: tokyo
+    #  name: Tokyo Ward Boundary
+    #  path: data/tokyo.geojson
+
+    ## optional filters/examples:
+    #- id: usa_ca
+    #  name: California (from a bigger file)
+    #  path: data/admin_1_states_provinces.shp
+    #  where: 'name == "California"'
+
