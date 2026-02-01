@@ -16,12 +16,13 @@ locations:
     name: Bay Area Outline
     path: data/ca_counties.geojson
     where: 'name in ["San Francisco","San Mateo","Santa Clara","Alameda","Contra Costa","Marin","Sonoma","Napa","Solano"]'
-
+    feature_name: name
 
   - id: countries
     name: Countries
     path: data/countries.geojson
     where: 'ADMIN in ["United States of America","Canada","Mexico", "India", "Japan"]'
+    feature_name: ADMIN
 
     #- id: tokyo
     #  name: Tokyo Ward Boundary
