@@ -72,8 +72,7 @@ def _read_location(loc: Dict[str, Any], config_path: Path) -> gpd.GeoDataFrame:
 
     if gdf.empty:
         raise ValueError(f"Location '{loc.get('id')}' produced an empty GeoDataFrame after reading/filtering.")
-
-    gdf = gdf[[c for c in gdf.columns if c == "geometry"]].copy()
+    gdf = gdf.copy()
     return gdf
 
 
@@ -183,11 +182,22 @@ async function init() {
     `AEQD center: (${DATA.center.lat.toFixed(4)}, ${DATA.center.lon.toFixed(4)})`;
 
   const sel = document.getElementById("locSelect");
-  DATA.locations.forEach((loc, idx) => {
-    const opt = document.createElement("option");
-    opt.value = loc.id;
-    opt.textContent = loc.name || loc.id;
-    sel.appendChild(opt);
+  const grouped = {};
+  DATA.locations.forEach(loc => {
+    if (!grouped[loc.category]) grouped[loc.category] = [];
+    grouped[loc.category].push(loc);
+  });
+  
+  Object.entries(grouped).forEach(([category, items]) => {
+    const grp = document.createElement("optgroup");
+    grp.label = category;
+    items.forEach(loc => {
+      const opt = document.createElement("option");
+      opt.value = loc.id;
+      opt.textContent = loc.name;
+      grp.appendChild(opt);
+    });
+    sel.appendChild(grp);
   });
 
   document.getElementById("addBtn").addEventListener("click", addSelected);
@@ -255,29 +265,30 @@ function renderOverlay() {
 
   // One group per layer (draggable)
   activeLayers.forEach(layer => {
-    const g = svg.append("g")
-      .attr("data-inst-id", layer.instId)
-      .attr("transform", `translate(${layer.tx}, ${layer.ty})`);
 
-    g.selectAll("path")
-      .data(layer.projected.features)
-      .enter()
-      .append("path")
-      .attr("d", d => path(d))
-      .attr("fill","none")
-      .attr("stroke", layer.color)
-      .attr("stroke-width", 2)
-      .attr("opacity", 0.9);
-
-    // drag behavior
-    g.call(d3.drag()
-      .on("start", () => {})
-      .on("drag", (event) => {
-        layer.tx += event.dx;
-        layer.ty += event.dy;
-        g.attr("transform", `translate(${layer.tx}, ${layer.ty})`);
-      })
-    );
+  const g = svg.append("g")
+    .attr("data-inst-id", layer.instId)
+    .attr("transform", `translate(${layer.tx}, ${layer.ty})`)
+    .style("cursor", "move");
+  
+  g.selectAll("path")
+    .data(layer.projected.features)
+    .enter()
+    .append("path")
+    .attr("d", d => path(d))
+    .attr("fill", "none")
+    .attr("stroke", layer.color)
+    .attr("stroke-width", 2)
+    .attr("opacity", 0.9)
+    .attr("pointer-events", "visibleStroke");   // <-- important
+  
+  g.call(
+    d3.drag().on("drag", (event) => {
+      layer.tx += event.dx;
+      layer.ty += event.dy;
+      g.attr("transform", `translate(${layer.tx}, ${layer.ty})`);
+    })
+  );
 
     layer.g = g;
   });
@@ -381,16 +392,36 @@ def main() -> None:
         color = loc.get("color") or colors[i % len(colors)]
         name = loc.get("name") or loc["id"]
 
-        projected_fc = _geom_to_geojson_feature_collection(g_m, {"id": loc["id"], "name": name})
-        wgs_fc = _geom_to_geojson_feature_collection(g_wgs, {"id": loc["id"], "name": name})
+        feature_col = loc.get("feature_name")
 
-        locations_payload.append({
-            "id": loc["id"],
-            "name": name,
-            "color": color,
-            "projected": projected_fc,
-            "wgs84": wgs_fc,
-        })
+        for idx, row in g_wgs.iterrows():
+            label = None
+            if feature_col and feature_col in row:
+                label = str(row[feature_col])
+            else:
+                label = f"{loc['id']}_{idx}"
+
+            geom_wgs = gpd.GeoDataFrame(
+                {"geometry": [row.geometry]},
+                crs=g_wgs.crs
+            )
+            geom_proj = geom_wgs.to_crs(aeqd)
+
+            projected_fc = _geom_to_geojson_feature_collection(
+                geom_proj, {"category": loc["id"], "label": label}
+            )
+            wgs_fc = _geom_to_geojson_feature_collection(
+                geom_wgs, {"category": loc["id"], "label": label}
+            )
+
+            locations_payload.append({
+                "id": f"{loc['id']}::{label}",
+                "category": loc["id"],
+                "name": label,
+                "color": color,
+                "projected": projected_fc,
+                "wgs84": wgs_fc,
+            })
 
     payload = {
         "center": {"lat": lat0, "lon": lon0},
