@@ -285,14 +285,12 @@ function renderOverlay() {
     return [(minX + maxX) / 2, (minY + maxY) / 2];
   }
 
-  // Keep all non-manually-moved layers centered on the first selected layer.
-  const anchorLayer = activeLayers[0];
-  const [anchorX, anchorY] = layerScreenCenter(anchorLayer);
-  const targetX = anchorX + anchorLayer.tx;
-  const targetY = anchorY + anchorLayer.ty;
+  // Keep all non-manually-moved layers stacked and centered in the viewport.
+  const targetX = W / 2;
+  const targetY = H / 2;
 
-  activeLayers.forEach((layer, idx) => {
-    if (idx === 0 || layer.userMoved) return;
+  activeLayers.forEach((layer) => {
+    if (layer.userMoved) return;
     const [layerX, layerY] = layerScreenCenter(layer);
     layer.tx = targetX - layerX;
     layer.ty = targetY - layerY;
