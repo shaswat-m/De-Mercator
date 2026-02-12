@@ -165,7 +165,7 @@ _APP_HTML = r"""<!doctype html>
 <script>
 let DATA;
 let map, baseTile;
-let activeLayers = []; // {id, name, color, projected, wgs84, tx, ty, g}
+let activeLayers = []; // {id, name, color, projected, wgs84, tx, ty, g, userMoved}
 
 const svg = d3.select("#overlay");
 const W = 1200, H = 800;
@@ -226,6 +226,7 @@ function addSelected() {
     wgs84: loc.wgs84,
     tx: 0,
     ty: 0,
+    userMoved: false,
   });
 
   render();
@@ -263,6 +264,38 @@ function renderOverlay() {
   const projection = d3.geoIdentity().reflectY(true).fitSize([W, H], fc);
   const path = d3.geoPath(projection);
 
+  function layerScreenCenter(layer) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+    layer.projected.features.forEach(feature => {
+      const b = path.bounds(feature);
+      if (!Number.isFinite(b[0][0]) || !Number.isFinite(b[0][1]) || !Number.isFinite(b[1][0]) || !Number.isFinite(b[1][1])) {
+        return;
+      }
+      minX = Math.min(minX, b[0][0]);
+      minY = Math.min(minY, b[0][1]);
+      maxX = Math.max(maxX, b[1][0]);
+      maxY = Math.max(maxY, b[1][1]);
+    });
+
+    if (!Number.isFinite(minX)) {
+      return [W / 2, H / 2];
+    }
+
+    return [(minX + maxX) / 2, (minY + maxY) / 2];
+  }
+
+  // Keep all non-manually-moved layers stacked and centered in the viewport.
+  const targetX = W / 2;
+  const targetY = H / 2;
+
+  activeLayers.forEach((layer) => {
+    if (layer.userMoved) return;
+    const [layerX, layerY] = layerScreenCenter(layer);
+    layer.tx = targetX - layerX;
+    layer.ty = targetY - layerY;
+  });
+
   // One group per layer (draggable)
   activeLayers.forEach(layer => {
 
@@ -286,6 +319,7 @@ function renderOverlay() {
     d3.drag().on("drag", (event) => {
       layer.tx += event.dx;
       layer.ty += event.dy;
+      layer.userMoved = true;
       g.attr("transform", `translate(${layer.tx}, ${layer.ty})`);
     })
   );
@@ -450,4 +484,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
