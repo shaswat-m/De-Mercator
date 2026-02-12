@@ -165,7 +165,7 @@ _APP_HTML = r"""<!doctype html>
 <script>
 let DATA;
 let map, baseTile;
-let activeLayers = []; // {id, name, color, projected, wgs84, tx, ty, g, autoPlaced, userMoved}
+let activeLayers = []; // {id, name, color, projected, wgs84, tx, ty, g, userMoved}
 
 const svg = d3.select("#overlay");
 const W = 1200, H = 800;
@@ -217,7 +217,6 @@ function addSelected() {
 
   // allow duplicates, but make unique layer instance
   const instId = uniqId(id);
-  const isFirstLayer = activeLayers.length === 0;
   activeLayers.push({
     instId,
     id: loc.id,
@@ -227,7 +226,6 @@ function addSelected() {
     wgs84: loc.wgs84,
     tx: 0,
     ty: 0,
-    autoPlaced: isFirstLayer,
     userMoved: false,
   });
 
@@ -287,18 +285,17 @@ function renderOverlay() {
     return [(minX + maxX) / 2, (minY + maxY) / 2];
   }
 
-  // Auto-place newly added layers on top of the first layer to reduce manual dragging.
+  // Keep all non-manually-moved layers centered on the first selected layer.
   const anchorLayer = activeLayers[0];
   const [anchorX, anchorY] = layerScreenCenter(anchorLayer);
   const targetX = anchorX + anchorLayer.tx;
   const targetY = anchorY + anchorLayer.ty;
 
   activeLayers.forEach((layer, idx) => {
-    if (idx === 0 || layer.autoPlaced || layer.userMoved) return;
+    if (idx === 0 || layer.userMoved) return;
     const [layerX, layerY] = layerScreenCenter(layer);
     layer.tx = targetX - layerX;
     layer.ty = targetY - layerY;
-    layer.autoPlaced = true;
   });
 
   // One group per layer (draggable)
